@@ -27,7 +27,9 @@ self.onmessage = async (e) => {
     await ready;
     const h = py.pyimport("harness");
     const res = m.kind === "run" ? h.run_json(m.code, m.stdin || "", m.setup || "")
-                                 : h.check_json(m.code, m.stdin || "", m.setup || "", JSON.stringify(m.tests || []));
+              : m.kind === "docs" ? h.docs_json(m.code, "", m.setup || "")
+              : m.kind === "call" ? h.call_json(m.method, m.url, typeof m.body === "string" ? m.body : undefined)
+              : h.check_json(m.code, m.stdin || "", m.setup || "", JSON.stringify(m.tests || []));
     self.postMessage({ id: m.id, ok: true, result: JSON.parse(res) });
   } catch (err) {
     self.postMessage({ id: m.id, ok: false, error: String(err && err.message || err) });
@@ -100,8 +102,26 @@ async function runPython(q, code, { log, stdin, onLoading }) {
     const r = await pyCall({ kind: "run", code, stdin: stdin ?? q.stdin ?? "", setup: q.setup || "" }, onLoading);
     if (r.out) log("log", r.out.replace(/\n$/, ""));
     if (r.err) log("err", r.err);
-    if (!r.out && !r.err) log("info", "(It ran, and nothing was printed.)");
+    if (!r.out && !r.err) log("info", nothingPrinted(q, r));
   } catch (e) { log("err", e.message); }
+}
+
+// Run printed nothing: usually the code only defines functions (or endpoints) and nothing calls them.
+function nothingPrinted(q, r) {
+  const funcs = r.funcs || [];
+  const calls = (q.tests || []).map(t => (t.expr || "").trim());
+  if (r.app) {
+    const ex = calls.find(c => /^TestClient\(app\)\.\w+\([^()]*\)(\.json\(\))?$/.test(c)) || 'TestClient(app).get("/")';
+    const line = /\.json\(\)$|\.status_code$/.test(ex) ? ex : ex + ".json()";
+    return `It ran without errors, but nothing was printed: an app only answers when something sends it a request.\n→ To try an endpoint here, add at the end:\n   from fastapi.testclient import TestClient\n   print(${line})\n→ Or press “Check my code” to run the tests.`;
+  }
+  if (funcs.length) {
+    const names = funcs.map(f => f.split("(")[0]);
+    const ex = calls.find(c => names.some(n => c.startsWith(n + "(")) && /^\w+\([^()]*\)$/.test(c));
+    const example = ex || funcs[0].replace(/\(.*\)/, "(…)");
+    return `It ran without errors, but nothing was printed: your code defines ${funcs.join(", ")}, and nothing calls ${funcs.length === 1 ? "it" : "them"}.\n→ To see what ${funcs.length === 1 ? "it gives" : "they give"} back, add a line at the end, like:  print(${example})\n→ Or press “Check my code” to run the tests.`;
+  }
+  return "(It ran, and nothing was printed.)";
 }
 
 async function checkPython(q, code, tests, onLoading) {
@@ -112,6 +132,10 @@ async function checkPython(q, code, tests, onLoading) {
     return tests.map(t => ({ name: t.name || t.expr, pass: false, why: e.message }));
   }
 }
+
+// ───── API docs: start the app once, then send it requests ─────
+const apiDocs = (q, code, onLoading) => pyCall({ kind: "docs", code, setup: q.setup || "" }, onLoading);
+const apiCall = (method, url, body) => pyCall({ kind: "call", method, url, body: body ?? null });
 
 // ───── one door for every language ─────
 async function runCode(q, code, { log, previewHost, stdin, onLoading } = {}) {

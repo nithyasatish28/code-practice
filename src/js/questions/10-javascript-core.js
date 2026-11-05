@@ -11,7 +11,7 @@ addQuestions("js", [
 
   // ───────── fill in the blanks ─────────
   { id: "jsc-b1", type: "blank", title: "Area of a rectangle", lang: "js",
-    q: "Complete the function so it gives back the area.", code: "function area(length, width) {\n  __1__ length __2__ width;\n}\n\nconsole.log(area(4, 5));   // 20",
+    q: "Complete the function so that it gives back the area.", code: "function area(length, width) {\n  __1__ length __2__ width;\n}\n\nconsole.log(area(4, 5));   // 20",
     acc: [["return"], ["*"]], why: "Area = length × width, and `return` gives the answer back. `*` is multiply." },
   { id: "jsc-b2", type: "blank", title: "Divisible by 3", lang: "js",
     q: "Print the numbers that divide exactly by 3.", code: "const n = 12;\n\nif (n __1__ 3 === 0) {\n  console.log(n + \" divides by 3\");\n}",

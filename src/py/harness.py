@@ -116,12 +116,27 @@ def _exec_program(src, stdin_text, setup, echo):
     return ns, out.getvalue(), err, setup_ns
 
 
+def _defined(ns):
+    """The functions the student's own code defines, as "name(params)", and whether it makes a FastAPI app."""
+    import inspect
+    funcs = []
+    for name, v in ns.items():
+        code = getattr(v, "__code__", None)
+        if inspect.isfunction(v) and code is not None and code.co_filename == "main.py" and not name.startswith("_"):
+            funcs.append(f"{name}({', '.join(inspect.signature(v).parameters)})")
+    app = any(type(v).__name__ == "FastAPI" for v in ns.values())
+    return funcs, app
+
+
 def run(src, stdin_text="", setup=""):
     try:
         ns, out, err, _ = _exec_program(src, stdin_text, setup, True)
     except RuntimeError as e:
         return {"out": "", "err": str(e)}
-    return {"out": out, "err": err}
+    res = {"out": out, "err": err}
+    if not out and not err:
+        res["funcs"], res["app"] = _defined(ns)
+    return res
 
 
 def _strip_comments(src):
@@ -241,3 +256,140 @@ def run_json(src, stdin_text="", setup=""):
 
 def check_json(src, stdin_text, setup, tests_json):
     return json.dumps(_with_limit(check, src, stdin_text, setup, tests_json))
+
+
+# ───────── API docs (like FastAPI's /docs page) ─────────
+# docs_json runs the program once and keeps its app, like a server that has started;
+# call_json then sends requests to that same app, so a POST is visible to a later GET.
+_DOCS = {}
+
+
+def _schema(tp):
+    """(type name, optional?) for a type hint, in the words Swagger uses."""
+    import types as _types
+    import typing as _typing
+    origin, args = _typing.get_origin(tp), _typing.get_args(tp)
+    if origin in (_typing.Union, _types.UnionType):
+        rest = [a for a in args if a is not type(None)]
+        return (_schema(rest[0])[0] if rest else "string"), True
+    if origin in (list, set, tuple) or tp in (list, set, tuple):
+        inner = _schema(args[0])[0] if args else "string"
+        return f"array[{inner}]", False
+    if tp is _inspect_empty() or tp is None:
+        return "string", False
+    names = {int: "integer", str: "string", float: "number", bool: "boolean", dict: "object"}
+    return names.get(tp, getattr(tp, "__name__", "string")), False
+
+
+def _inspect_empty():
+    import inspect
+    return inspect.Parameter.empty
+
+
+def _example(kind):
+    return {"integer": 0, "number": 0, "string": "string", "boolean": True, "object": {}}.get(kind, [] if kind.startswith("array") else "string")
+
+
+def _jsonable(v):
+    try:
+        json.dumps(v)
+        return v
+    except Exception:
+        return repr(v)
+
+
+def _model_info(model):
+    fields, example = [], {}
+    for name, (tp, default) in getattr(model, "model_fields", {}).items():
+        kind, optional = _schema(tp)
+        from pydantic import _MISSING  # the stand-in's marker for "no default"
+        has_default = default is not _MISSING
+        fields.append({"name": name, "type": kind, "required": not has_default and not optional,
+                       "default": _jsonable(default) if has_default else None})
+        example[name] = _jsonable(default) if has_default and default is not None else _example(kind)
+    return {"model": model.__name__, "fields": fields, "example": example}
+
+
+def docs_json(src, stdin_text="", setup=""):
+    import inspect
+    import typing
+    try:
+        ns, out, err, _ = _with_limit(_exec_program, src, stdin_text, setup, False)
+    except RuntimeError as e:
+        return json.dumps({"error": str(e)})
+    if err:
+        return json.dumps({"error": err})
+    app = next((v for v in ns.values() if type(v).__name__ == "FastAPI"), None)
+    if app is None:
+        return json.dumps({"error": "Your code doesn't make a FastAPI app yet. It needs a line like: app = FastAPI()"})
+    _DOCS["app"] = app
+    routes = []
+    for r in app.routes:
+        fn = r.endpoint
+        try:
+            hints = typing.get_type_hints(fn)
+        except Exception:
+            hints = {}
+        path_names = re.findall(r"\{(\w+)", r.path)
+        params, body = [], None
+        for name, p in inspect.signature(fn).parameters.items():
+            default = p.default
+            if type(default).__name__ == "_Depends":
+                continue
+            if type(default).__name__ == "_Param":
+                default = default.default
+            tp = hints.get(name, p.annotation)
+            model = tp if inspect.isclass(tp) and hasattr(tp, "model_fields") else None
+            if model is None:
+                kind, optional = _schema(tp)
+                inner = typing.get_args(tp)
+                if optional and inner and inspect.isclass(inner[0]) and hasattr(inner[0], "model_fields"):
+                    model = inner[0]
+            if model is not None:
+                body = _model_info(model)
+                body["required"] = default is inspect.Parameter.empty or default is ...
+                continue
+            kind, optional = _schema(tp)
+            if name in path_names:
+                params.append({"name": name, "in": "path", "type": kind, "required": True, "default": None})
+            else:
+                required = (default is inspect.Parameter.empty or default is ...) and not optional
+                has_default = default is not inspect.Parameter.empty and default is not ...
+                params.append({"name": name, "in": "query", "type": kind, "required": required,
+                               "default": _jsonable(default) if has_default else None})
+        for m in r.methods:
+            routes.append({"method": m, "path": r.path, "summary": fn.__name__.replace("_", " ").title(),
+                           "status": r.status_code or 200, "params": params, "body": body})
+    return json.dumps({"title": getattr(app, "title", "FastAPI"), "routes": routes, "printed": out})
+
+
+def call_json(method, url, body_text=None):
+    app = _DOCS.get("app")
+    if app is None:
+        return json.dumps({"error": "Open the API docs again: the app isn't running."})
+    from fastapi.testclient import TestClient
+    kwargs = {}
+    if not isinstance(body_text, str):
+        body_text = None
+    if body_text is not None and body_text.strip() != "":
+        try:
+            kwargs["json"] = json.loads(body_text)
+        except Exception as e:
+            return json.dumps({"error": f"The request body isn't valid JSON: {e}"})
+    out = io.StringIO()
+    old = sys.stdout, sys.stderr
+    sys.stdout = sys.stderr = out
+    try:
+        client = TestClient(app)
+        send = getattr(client, method.lower())
+        res = _with_limit(lambda: send(url, **kwargs))
+    except BaseException as e:
+        sys.stdout, sys.stderr = old
+        return json.dumps({"status": 500, "body": "Internal Server Error", "crash": friendly(e), "printed": out.getvalue()})
+    finally:
+        sys.stdout, sys.stderr = old
+    try:
+        body = res.json()
+    except Exception:
+        body = res.text
+    return json.dumps({"status": res.status_code, "body": _jsonable(body), "printed": out.getvalue()})

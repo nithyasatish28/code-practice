@@ -338,12 +338,14 @@ function codeView(ctx) {
         <button class="btn" type="button" data-check>Check my code</button>
         <button class="btn ghost" type="button" data-reset>Start over</button>
         <button class="btn ghost" type="button" data-sol>Show solution</button>
+        ${isApiQuestion(q) ? `<button class="btn ghost" type="button" data-docs aria-expanded="false">API docs (/docs)</button>` : ""}
         <span class="note">${term ? "One command per line." : "Ctrl + Enter checks."}</span>
       </div>
       <div class="panes ${react ? "two" : ""}">
         ${react ? `<div class="pane"><h4>Preview</h4><div class="preview"></div></div>` : ""}
         <div class="pane"><h4>${term ? "Terminal" : "Console"}</h4><div class="console" aria-live="polite"></div></div>
       </div>
+      ${isApiQuestion(q) ? `<div class="pane" data-docs-pane hidden><h4><span>API docs · like ${API_BASE}/docs</span><button class="btn ghost small" type="button" data-docs-restart>Restart app</button></h4><div class="apidocs"></div></div>` : ""}
       <div class="pane"><h4>Checks</h4><ul class="checks">${names.map(nm => `<li class="wait"><span class="i">○</span><span>${esc(nm)}</span></li>`).join("")}</ul></div>
       <div class="solution" data-solution hidden></div>
     </div>`;
@@ -386,6 +388,18 @@ function codeView(ctx) {
     btn.disabled = false; busy = false;
   };
   body.querySelector("[data-run]").addEventListener("click", () => run(false));
+  const docsBtn = body.querySelector("[data-docs]");
+  if (docsBtn) {
+    const pane = body.querySelector("[data-docs-pane]"), host = pane.querySelector(".apidocs");
+    const start = () => renderApiDocs(host, q, ed.value, onLoading);
+    docsBtn.addEventListener("click", () => {
+      const open = pane.hidden;
+      pane.hidden = !open; docsBtn.setAttribute("aria-expanded", String(open));
+      docsBtn.textContent = open ? "Hide API docs" : "API docs (/docs)";
+      if (open) { start(); pane.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+    });
+    pane.querySelector("[data-docs-restart]").addEventListener("click", start);
+  }
   body.querySelector("[data-check]").addEventListener("click", check);
   body.querySelector("[data-reset]").addEventListener("click", e => confirmClick(e.currentTarget, () => { ed.value = q.starter; entry.code = q.starter; save(); }, "Click again to start over"));
   body.querySelector("[data-sol]").addEventListener("click", e => {

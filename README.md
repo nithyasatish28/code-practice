@@ -15,6 +15,7 @@ src/
   style.css                 ← the styles
   js/
     00-util.js … 15-data.js ← the engine: editor, runners, topics and question types
+    30-api-docs.js          ← the "API docs (/docs)" panel for FastAPI questions
     40-app.js               ← the app: filters, question views, notes pages
     questions/              ← ★ the questions and study notes (edit these)
       10-javascript-core.js        maths, loops, conditions
@@ -119,4 +120,6 @@ After that, every change you push (even one edited on github.com) is rebuilt and
 
 - Students' progress is saved in their own browser (localStorage), per site address.
 - **Run** in the "your own API" questions really calls `http://127.0.0.1:8000`. It only shows data if the student's API is running and allows the page in CORS. **Check my code** always works, with no server.
+- FastAPI write/debug questions have an **API docs (/docs)** button: a page like FastAPI's Swagger UI for the student's own code, with Execute, request URL, curl, status code and response body. The app keeps its data between requests (a POST shows up in a later GET); "Restart app" runs the code again.
+- **Run** prints what the program prints. If the code only defines functions (or endpoints) and nothing calls them, Run says so and suggests a line to add, e.g. `print(get_item(1))`.
 - Python normally runs in a background worker. Where that isn't allowed (for example a sandboxed preview), it runs on the page instead, with a 10-second limit per run.
