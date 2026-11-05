@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exam Practice</title>
+<meta name="description" content="Practice questions with explanations: JavaScript, React basics, terminal commands, FastAPI and SQLAlchemy.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<!-- React + Babel run the React answers; Python (Pyodide) loads only when a Python question opens. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js" crossorigin="anonymous"></script>
+<style>
+/*STYLE*/
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#" style="text-decoration:none;color:inherit">Exam Practice <span>·</span> <small style="font:600 .9rem var(--f-body);color:var(--muted)">JS · React · Terminal · FastAPI · SQLAlchemy</small></a>
+    <div class="overall"><span class="bar"><i id="overallBar" style="width:0"></i></span><span id="overallText"></span></div>
+    <a class="btn ghost small" href="#notes">📖 Study notes</a>
+    <button class="btn ghost small" id="randomBtn" type="button">Random question</button>
+    <button class="btn ghost small" id="resetBtn" type="button">Clear progress</button>
+  </div>
+</header>
+<div class="layout">
+  <aside class="side" id="side">
+    <button class="btn ghost mobile-toggle" id="sideToggle" type="button" aria-expanded="true" aria-controls="side">Filters and question list</button>
+    <nav class="panel notes-nav" aria-label="Study notes">
+      <h3><a href="#notes">Study notes</a></h3>
+      <ul id="notesNav"></ul>
+    </nav>
+    <div class="panel">
+      <h3>Topics <button class="linkbtn" id="allTopics" type="button" style="font-size:.8rem;text-transform:none;letter-spacing:0">Show everything</button></h3>
+      <div class="topics" id="topics"></div>
+      <h3>Question type</h3>
+      <div class="chips" id="types"></div>
+      <h3>Status</h3>
+      <div class="chips" id="status" style="margin-bottom:12px"></div>
+      <input class="search" id="search" type="search" placeholder="Search questions" aria-label="Search questions">
+    </div>
+    <div class="panel qlist-panel">
+      <div class="qlist-head"><span id="listCount"></span><span>● correct ● wrong</span></div>
+      <ul class="qlist" id="qlist"></ul>
+    </div>
+  </aside>
+  <main id="main" aria-live="polite"></main>
+</div>
+<script>
+/*SCRIPT*/
+</script>
+</body>
+</html>
