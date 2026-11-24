@@ -5,6 +5,7 @@ const TOPICS = [
   { id: "terminal", name: "Terminal", color: "var(--t-terminal)" },
   { id: "fastapi", name: "FastAPI", color: "var(--t-fastapi)" },
   { id: "sqlalchemy", name: "SQLAlchemy & sessions", color: "var(--t-sqlalchemy)" },
+  { id: "advanced", name: "Advanced backend", color: "var(--t-advanced)" },
 ];
 const TYPES = [
   { id: "mcq", name: "Multiple choice", short: "MCQ" },

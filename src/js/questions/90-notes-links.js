@@ -51,6 +51,16 @@ const NOTE_RULES = {
     [/get_item|READ ONE|session\.get|NoneType|missing id/i, "READ ONE"],
     [/./, "READ ALL"],
   ],
+  advanced: [
+    [/Pydantic/i, "Request bodies (Pydantic)"],
+    [/SQLAlchemy/i, "SQLAlchemy: filters, updates, counts"],
+    [/batch_counts|outer join/i, "Counting children (like an outer join)"],
+    [/RBAC|[Rr]ole/i, "Roles (RBAC)"],
+    [/[Ll]og in|argon2|ph\.verify/i, "Passwords (argon2)"],
+    [/JWT|token/i, "Tokens (JWT)"],
+    [/PATCH/, "PATCH: partial updates"],
+    [/./, "Errors with HTTPException"],
+  ],
 };
 const NOTE_OVERRIDES = {
   // JavaScript
@@ -70,6 +80,23 @@ const NOTE_OVERRIDES = {
   "api-m10": "The smallest app", "api-b8": "HTTP methods", "api-w5": "HTTP methods", "api-w6": "HTTP methods",
   "api-w8": "main.py and functions.py", "api-d9": "The smallest app", "api-d10": "Query parameters: after the ?",
   "api-d11": "Request bodies with Pydantic", "api-d15": "Request bodies with Pydantic", "api-d16": "Path parameters: part of the URL",
+  // Advanced backend
+  "adv-w1": "Errors with HTTPException",
+  "adv-m1": "Errors with HTTPException",
+  "adv-m10": "Passwords (argon2)",
+  "adv-m12": "Passwords (argon2)",
+  "adv-m13": "Request bodies (Pydantic)",
+  "adv-m14": "Request bodies (Pydantic)",
+  "adv-m15": "SQLAlchemy: filters, updates, counts",
+  "adv-m16": "SQLAlchemy: filters, updates, counts",
+  "adv-m17": "SQLAlchemy: filters, updates, counts",
+  "adv-m18": "Counting children (like an outer join)",
+  "adv-m20": "Roles (RBAC)",
+  "adv-b8": "Passwords (argon2)",
+  "adv-b11": "Request bodies (Pydantic)",
+  "adv-b12": "SQLAlchemy: filters, updates, counts",
+  "adv-b13": "SQLAlchemy: filters, updates, counts",
+  "adv-b14": "SQLAlchemy: filters, updates, counts",
   // SQLAlchemy
   "db-m6": "CREATE", "db-m11": "UPDATE and DELETE", "db-b8": "UPDATE and DELETE", "db-w6": "READ ALL", "db-d6": "READ ALL",
 };

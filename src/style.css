@@ -3,7 +3,7 @@
   --accent: #0f7a5c; --accent-soft: #e3f3ec; --hint: #b86a00; --hint-soft: #fff3df;
   --good: #158a4a; --good-soft: #e3f6ea; --bad: #c2362f; --bad-soft: #fde8e6;
   --code-bg: #111816; --code-2: #18211e;
-  --t-js: #b8860b; --t-react: #1f7fae; --t-terminal: #4b5563; --t-fastapi: #0f8a74; --t-sqlalchemy: #b4442f;
+  --t-js: #b8860b; --t-react: #1f7fae; --t-terminal: #4b5563; --t-fastapi: #0f8a74; --t-sqlalchemy: #b4442f; --t-advanced: #7c3aed;
   --f-head: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --f-body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
   --f-code: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;

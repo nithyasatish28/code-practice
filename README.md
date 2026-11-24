@@ -1,6 +1,6 @@
 # Exam Practice
 
-A practice page for JavaScript, React, the terminal, FastAPI and SQLAlchemy: multiple choice, fill in the blanks, write code and debug code, with study notes. Code questions run in the browser (Python via Pyodide), so the page needs no server, only an internet connection.
+A practice page for JavaScript, React, the terminal, FastAPI, SQLAlchemy and advanced backend topics (JWT tokens, passwords, roles): multiple choice, fill in the blanks, write code and debug code, with study notes. Code questions run in the browser (Python via Pyodide), so the page needs no server, only an internet connection.
 
 `index.html` is the whole page in one file. It is **built** from the modular files in `src/`, so edit `src/` and then rebuild.
 
@@ -30,6 +30,7 @@ src/
       40-fastapi.js                FastAPI NOTES + questions
       41-fastapi-debug.js          more FastAPI debugging
       50-sqlalchemy.js             SQLAlchemy NOTES + questions (class format)
+      60-advanced-backend.js       Advanced backend NOTES + questions (errors, JWT, argon2, RBAC, PATCH)
       90-notes-links.js            which notes section each question links to
   py/
     harness.py              ← runs and checks Python answers
@@ -46,7 +47,7 @@ Files are loaded in name order, and within each question type the questions appe
 
 ## The question format
 
-Every file calls `addQuestions(topic, [ … ])`. The topic is `"js"`, `"react"`, `"terminal"`, `"fastapi"` or `"sqlalchemy"`. Every question needs a **unique `id`**, a `type`, a `title`, the question `q` (Markdown: `**bold**`, `` `code` ``) and an explanation `why`.
+Every file calls `addQuestions(topic, [ … ])`. The topic is `"js"`, `"react"`, `"terminal"`, `"fastapi"`, `"sqlalchemy"` or `"advanced"`. Every question needs a **unique `id`**, a `type`, a `title`, the question `q` (Markdown: `**bold**`, `` `code` ``) and an explanation `why`.
 
 ### Multiple choice
 ```js
