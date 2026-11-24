@@ -134,7 +134,7 @@ function renderWelcome(main) {
   const byType = TYPES.map(t => `${BANK.filter(q => q.type === t.id).length} ${t.name.toLowerCase()}`).join(" · ");
   main.innerHTML = `<article class="card welcome">
     <h2 style="margin-top:0">Practise for the exam</h2>
-    <p>${BANK.length} questions on JavaScript, React, the terminal, FastAPI and SQLAlchemy: ${byType}. Every answer comes with an explanation, and code questions run right here in the browser.</p>
+    <p>${BANK.length} questions on JavaScript, React, the terminal, FastAPI, SQLAlchemy and advanced backend (tokens, roles, errors): ${byType}. Every answer comes with an explanation, and code questions run right here in the browser.</p>
     <div class="stats">${TOPICS.map(t => `<button class="stat" type="button" data-start="${t.id}"><b style="color:${t.color}">${esc(t.name)}</b><span>${n(t.id)} questions · ${okN(t.id)} correct</span><span class="bar"><i style="width:${n(t.id) ? okN(t.id) / n(t.id) * 100 : 0}%;background:${t.color}"></i></span></button>`).join("")}</div>
     <h3>How to use it</h3>
     <ul>

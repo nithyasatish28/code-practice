@@ -545,6 +545,61 @@ def create_engine(url, **kwargs):
     return Engine(url, **kwargs)
 
 
+# ───────────────────────── aggregates: func.count(...) etc. ─────────────────────────
+
+
+class _Agg:
+    """func.count(Book.id), func.sum(...), …: worked out over the rows of each group."""
+
+    def __init__(self, name, col=None):
+        self.name = name
+        self.col = col
+        self.key = name
+
+    def label(self, name):
+        new = copy.copy(self)
+        new.key = name
+        return new
+
+    def compute(self, rows):
+        if self.col is None or not isinstance(self.col, InstrumentedAttribute):
+            values = [1 for _ in rows]
+        else:
+            values = [r.get(self.col.key) for r in rows if r.get(self.col.key) is not None]
+        if self.name == "count":
+            return len(values)
+        if not values:
+            return None
+        if self.name == "sum":
+            return sum(values)
+        if self.name == "avg":
+            return sum(values) / len(values)
+        if self.name == "min":
+            return min(values)
+        if self.name == "max":
+            return max(values)
+        raise InvalidRequestError(f"func.{self.name} isn't supported on this practice page")
+
+    def desc(self):
+        return _Order(self, True)
+
+    def asc(self):
+        return _Order(self, False)
+
+    def __repr__(self):
+        return f"{self.name}({self.col.key if isinstance(self.col, InstrumentedAttribute) else '*'})"
+
+
+class _Func:
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        return lambda col=None, *rest: _Agg(name, col)
+
+
+func = _Func()
+
+
 # ───────────────────────── statements and results ─────────────────────────
 
 
@@ -557,18 +612,22 @@ class Select:
         self._order = []
         self._limit = None
         self._offset = 0
+        self._group = []
 
     def _copy(self, **changes):
         new = copy.copy(self)
         new._where = list(self._where)
         new._order = list(self._order)
+        new._group = list(self._group)
         for k, v in changes.items():
             setattr(new, k, v)
         return new
 
     @property
     def _cls(self):
-        e = self._entities[0]
+        e = next((x for x in self._entities if not isinstance(x, _Agg)), self._entities[0])
+        if isinstance(e, _Agg) and isinstance(e.col, InstrumentedAttribute):
+            return e.col.class_
         if isinstance(e, InstrumentedAttribute):
             return e.class_
         if inspect.isclass(e) and isinstance(getattr(e, "__table__", None), Table):
@@ -598,7 +657,7 @@ class Select:
     def order_by(self, *cols):
         new = self._copy()
         for c in cols:
-            new._order.append(c if isinstance(c, _Order) else _Order(c.key, False))
+            new._order.append(c if isinstance(c, _Order) else _Order(c if isinstance(c, _Agg) else c.key, False))
         return new
 
     def limit(self, n):
@@ -607,10 +666,48 @@ class Select:
     def offset(self, n):
         return self._copy(_offset=n)
 
+    def group_by(self, *cols):
+        new = self._copy()
+        new._group.extend(cols)
+        return new
+
+    def _run_grouped(self, rows):
+        """GROUP BY (or a plain aggregate like count(*)): one output row per group."""
+        groups = {}
+        for _, r in rows:
+            key = tuple(r.get(c.key) for c in self._group)
+            groups.setdefault(key, []).append(r)
+        if not self._group and not groups:
+            groups[()] = []
+        out = []
+        for key in sorted(groups, key=lambda k: tuple((v is not None, v if v is not None else 0) for v in k)):
+            members = groups[key]
+            values = []
+            for e in self._entities:
+                if isinstance(e, _Agg):
+                    values.append(e.compute(members))
+                elif isinstance(e, InstrumentedAttribute):
+                    values.append(members[0].get(e.key) if members else None)
+                else:
+                    raise InvalidRequestError("With group_by, select columns and func.count(...), not the whole model.")
+            out.append(values)
+        labels = [e.key for e in self._entities]
+        for o in reversed(self._order):
+            k = o.key.key if isinstance(o.key, _Agg) else o.key
+            if k in labels:
+                i = labels.index(k)
+                out.sort(key=lambda v: (v[i] is not None, v[i] if v[i] is not None else 0), reverse=o.desc)
+        out = out[self._offset:]
+        if self._limit is not None:
+            out = out[:self._limit]
+        return Result(out, labels)
+
     def _run(self, session):
         cls = self._cls
         table = session._read_table(cls.__table__)
         rows = [(k, r) for k, r in table.items() if all(c(r) for c in self._where)]
+        if self._group or any(isinstance(e, _Agg) for e in self._entities):
+            return self._run_grouped(rows)
         rows.sort(key=lambda kr: kr[0])
         for o in reversed(self._order):
             rows.sort(key=lambda kr: (kr[1].get(o.key) is not None, kr[1].get(o.key) if kr[1].get(o.key) is not None else 0),
@@ -732,6 +829,9 @@ class Query:
 
     def limit(self, n):
         return self._with(self._stmt.limit(n))
+
+    def group_by(self, *cols):
+        return self._with(self._stmt.group_by(*cols))
 
     def offset(self, n):
         return self._with(self._stmt.offset(n))

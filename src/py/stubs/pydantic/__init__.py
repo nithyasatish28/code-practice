@@ -4,6 +4,7 @@ Only BaseModel, Field and ValidationError, with pydantic's "lax" conversions:
 "3" -> 3 for int, but 5 -> "5" is refused for str.
 """
 import copy
+import datetime
 import inspect
 import json
 import types
@@ -93,6 +94,29 @@ def coerce(tp, value):
         if isinstance(value, str):
             return value
         raise _FieldError("string_type", "Input should be a valid string", value)
+    if tp is datetime.datetime:
+        if isinstance(value, datetime.datetime):
+            return value
+        if isinstance(value, str):
+            try:
+                return datetime.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            except ValueError:
+                pass
+        raise _FieldError("datetime_from_date_parsing", "Input should be a valid datetime", value)
+    if tp is datetime.date:
+        if isinstance(value, datetime.datetime):
+            if value.time() == datetime.time(0):
+                return value.date()
+            raise _FieldError("date_from_datetime_inexact", "Datetimes provided to dates should have zero time", value)
+        if isinstance(value, datetime.date):
+            return value
+        if isinstance(value, str):
+            try:
+                return datetime.date.fromisoformat(value.strip())
+            except ValueError:
+                pass
+            raise _FieldError("date_from_datetime_parsing", "Input should be a valid date in the format YYYY-MM-DD", value)
+        raise _FieldError("date_type", "Input should be a valid date", value)
     if origin in (list, typing.List) or tp is list:
         if not isinstance(value, (list, tuple)):
             raise _FieldError("list_type", "Input should be a valid list", value)
@@ -149,6 +173,7 @@ class BaseModel:
 
     def __init__(self, **data):
         errors = []
+        object.__setattr__(self, "_fields_set", {k for k in data if k in self.model_fields})
         for name, (tp, default) in self.model_fields.items():
             if name in data:
                 try:
@@ -169,14 +194,30 @@ class BaseModel:
         if errors:
             raise ValidationError(errors, type(self).__name__)
 
-    def model_dump(self, **kwargs):
-        return {name: _dump(getattr(self, name)) for name in self.model_fields}
+    @property
+    def model_fields_set(self):
+        return set(getattr(self, "_fields_set", set()))
+
+    def model_dump(self, *, exclude_none=False, exclude_unset=False, include=None, exclude=None, **kwargs):
+        out = {}
+        for name in self.model_fields:
+            value = getattr(self, name)
+            if exclude_none and value is None:
+                continue
+            if exclude_unset and name not in self.model_fields_set:
+                continue
+            if include is not None and name not in include:
+                continue
+            if exclude is not None and name in exclude:
+                continue
+            out[name] = _dump(value)
+        return out
 
     def dict(self, **kwargs):
-        return self.model_dump()
+        return self.model_dump(**kwargs)
 
     def model_dump_json(self, **kwargs):
-        return json.dumps(self.model_dump())
+        return json.dumps(self.model_dump(**kwargs), default=str)
 
     def __eq__(self, other):
         return type(self) is type(other) and self.model_dump() == other.model_dump()
